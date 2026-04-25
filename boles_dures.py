@@ -1,5 +1,6 @@
 from vpython import *
 import numpy as np
+from scipy.stats import maxwell
 
 # --- PARÁMETROS BÁSICOS (Q1: Natoms = 500) ---
 win = 500
@@ -7,7 +8,7 @@ Natoms = 500
 L = 1  
 gray = color.gray(0.7)
 mass = 4E-3/6E23  
-Ratom = 0.03  # Valor a discutir en Q1 [cite: 11]
+Ratom = 0.01  # Valor a discutir en Q1 [cite: 11]
 k = 1.4E-23  
 T = 300  # Temperatura de la colectividad canónica (Q2) 
 dt = 1E-5
@@ -128,11 +129,17 @@ while True:
     for i in range(Natoms):
         loc = apos[i]
         if abs(loc.x) > L/2:
-            p[i].x = (1 if loc.x < 0 else -1) * abs(mass * np.random.normal(0, sigma))
-            apos[i].x = (L/2 - 0.001) * np.sign(loc.x)
+            if loc.x < 0: p[i].x =  abs(p[i].x)
+            else: p[i].x =  -abs(p[i].x)
+        
         if abs(loc.y) > L/2:
-            p[i].y = (1 if loc.y < 0 else -1) * abs(mass * np.random.normal(0, sigma))
-            apos[i].y = (L/2 - 0.001) * np.sign(loc.y)
+            if loc.y < 0: p[i].y = abs(p[i].y)
+            else: p[i].y =  -abs(p[i].y)
+        
         if abs(loc.z) > L/2:
-            p[i].z = (1 if loc.z < 0 else -1) * abs(mass * np.random.normal(0, sigma))
-            apos[i].z = (L/2 - 0.001) * np.sign(loc.z)
+            if loc.z < 0: p[i].z =  abs(p[i].z)
+            else: p[i].z =  -abs(p[i].z)
+
+        if abs(loc.x) > L/2 or abs(loc.y) > L/2 or abs(loc.z) > L/2:
+            p_random = mass*maxwell.rvs(scale=sigma)
+            p[i] = p[i]/mag(p[i])*p_random
