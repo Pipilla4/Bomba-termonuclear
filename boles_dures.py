@@ -4,11 +4,11 @@ from scipy.stats import maxwell
 
 # --- PARÁMETROS BÁSICOS (Q1: Natoms = 500) ---
 win = 500
-Natoms = 500  
+Natoms = 500
 L = 1  
 gray = color.gray(0.7)
 mass = 4E-3/6E23  
-Ratom = 0.01  # Valor a discutir en Q1 [cite: 11]
+Ratom = 0.02  # Valor a discutir en Q1 [cite: 11]
 k = 1.4E-23  
 T = 300  # Temperatura de la colectividad canónica (Q2) 
 dt = 1E-5
@@ -32,7 +32,7 @@ for i in range(4):
 Atoms = []
 p = []
 apos = []
-pavg = sqrt(2*mass*1.5*k*T) 
+pavg = sqrt(2*mass*1.5*k*T)
 
 for i in range(Natoms):
     x, y, z = L*random()-L/2, L*random()-L/2, L*random()-L/2
@@ -111,6 +111,7 @@ while True:
 
     # Evolución temporal
     for i in range(Natoms): 
+        p[i] = p[i] + mass*vector(0,-9.8,0)*dt
         apos[i] = apos[i] + (p[i]/mass)*dt
         Atoms[i].pos = apos[i]
 
