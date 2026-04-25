@@ -51,8 +51,12 @@ for i in range(Natoms):
 # --- CONFIGURACIÓN DE GRÁFICOS Y ESTADÍSTICA (Q2) ---
 deltav = 100 
 def barx(v): return int(v/deltav)
+def barx_z(vz): return int((vz + 2250)/deltav)
+def barx_zp(z): return int((z + 0.5)/0.01)
 nhisto_bins = int(4500/deltav)
 histo = [0.0]*nhisto_bins
+histo_z = [0.0]*nhisto_bins
+histo_zp = [0.0]*100
 
 # Gráfico de velocidades (Maxwell-Boltzmann)
 gg = graph(width=win, height=0.4*win, xmax=3000, align='left',
@@ -69,17 +73,39 @@ energy_plot = gcurve(color=color.green)
 E_teorica_line = gcurve(color=color.black, dot=True)
 E_teorica = (3/2) * Natoms * k * T 
 
+# Gráfico de velocidades z
+gz = graph(width=win, height=0.4*win, align='left', xmin=-3000, xmax=3000, 
+           xtitle='vz (m/s)', ytitle='N. Àtoms')
+vdist_z = gvbars(color=color.blue, delta=deltav)
+
+# Gráfico de posicions z
+gp = graph(width=win, height=0.4*win, align='right', xmin=-0.5, xmax=0.5, 
+           xtitle='z (m)', ytitle='N. Àtoms')
+pos_dist = gvbars(color=color.orange, delta=0.01) 
+
 accum = [[deltav*(i+.5), 0] for i in range(int(3000/deltav))]
+accum_z = [[-2250 + deltav*i, 0] for i in range(45)]
+accum_zp = [[-0.5 + 0.01*(i+0.5), 0] for i in range(100)]
 
 def update_histogram():
     """Recalcula el conteo real de partículas por rango de velocidad."""
-    global histo
+    global histo, histo_z, histo_zp
     histo = [0.0] * nhisto_bins
+    histo_z = [0.0] * nhisto_bins
+    histo_zp = [0.0] * 100
     for i in range(Natoms):
         v = p[i].mag / mass
         bin_idx = barx(v)
         if bin_idx < len(histo):
             histo[bin_idx] += 1
+        vz = p[i].z / mass
+        bin_idx_z = barx_z(vz)
+        if 0 <= bin_idx_z < len(histo_z):
+            histo_z[bin_idx_z] += 1
+        zp = apos[i].z
+        bin_idx_zp = barx_zp(zp)
+        if 0 <= bin_idx_zp < len(histo_zp):
+            histo_zp[bin_idx_zp] += 1
 
 def checkCollisions():
     hitlist = []
@@ -99,9 +125,15 @@ while True:
     update_histogram()
     for i in range(len(accum)): 
         accum[i][1] = (nhisto * accum[i][1] + histo[i]) / (nhisto + 1)
+    for i in range(len(accum_z)): 
+        accum_z[i][1] = (nhisto * accum_z[i][1] + histo_z[i]) / (nhisto + 1)
+    for i in range(len(accum_zp)): 
+        accum_zp[i][1] = (nhisto * accum_zp[i][1] + histo_zp[i]) / (nhisto + 1)
     
     if nhisto % 10 == 0: 
         vdist.data = accum
+        vdist_z.data = accum_z
+        pos_dist.data = accum_zp
         # Estudio de energía (Q2) 
         K_total = sum([mag2(pi)/(2*mass) for pi in p])
         energy_plot.plot(nhisto, K_total)
@@ -111,7 +143,7 @@ while True:
 
     # Evolución temporal
     for i in range(Natoms): 
-        p[i] = p[i] + mass*vector(0,-9.8,0)*dt
+        p[i] = p[i] + mass*vector(0,0,-9800)*dt
         apos[i] = apos[i] + (p[i]/mass)*dt
         Atoms[i].pos = apos[i]
 
