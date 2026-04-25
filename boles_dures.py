@@ -1,176 +1,138 @@
-Web VPython 3.2
+from vpython import *
+import numpy as np
 
-# Hard-sphere gas.
-
-# Bruce Sherwood
-
+# --- PARÁMETROS BÁSICOS (Q1: Natoms = 500) ---
 win = 500
-
-Natoms = 200  # change this to have more or fewer atoms
-
-# Typical values
-L = 1 # container is a cube L on a side
-gray = color.gray(0.7) # color of edges of container
-mass = 4E-3/6E23 # helium mass
-Ratom = 0.03 # wildly exaggerated size of helium atom
-k = 1.4E-23 # Boltzmann constant
-T = 300 # around room temperature
+Natoms = 500  
+L = 1  
+gray = color.gray(0.7)
+mass = 4E-3/6E23  
+Ratom = 0.03  # Valor a discutir en Q1 [cite: 11]
+k = 1.4E-23  
+T = 300  # Temperatura de la colectividad canónica (Q2) 
 dt = 1E-5
+sigma = (k*T/mass)**(1/2)
 
-animation = canvas( width=win, height=win, align='left')
+animation = canvas(width=win, height=win, align='left')
 animation.range = L
-animation.title = 'A "hard-sphere" gas'
-s = """  Theoretical and averaged speed distributions (meters/sec).
-  Initially all atoms have the same speed, but collisions
-  change the speeds of the colliding atoms. One of the atoms is
-  marked and leaves a trail so you can follow its path.
-  
-"""
-animation.caption = s
+animation.title = 'Gas de esferas duras - Termostato de Andersen (Q2)'
+animation.caption = "Distribución de velocidades (Izq) y Energía Total (Der)."
 
+# --- CONFIGURACIÓN DEL CONTENEDOR ---
 d = L/2+Ratom
 r = 0.005
-boxbottom = curve(color=gray, radius=r)
-boxbottom.append([vector(-d,-d,-d), vector(-d,-d,d), vector(d,-d,d), vector(d,-d,-d), vector(-d,-d,-d)])
-boxtop = curve(color=gray, radius=r)
-boxtop.append([vector(-d,d,-d), vector(-d,d,d), vector(d,d,d), vector(d,d,-d), vector(-d,d,-d)])
-vert1 = curve(color=gray, radius=r)
-vert2 = curve(color=gray, radius=r)
-vert3 = curve(color=gray, radius=r)
-vert4 = curve(color=gray, radius=r)
-vert1.append([vector(-d,-d,-d), vector(-d,d,-d)])
-vert2.append([vector(-d,-d,d), vector(-d,d,d)])
-vert3.append([vector(d,-d,d), vector(d,d,d)])
-vert4.append([vector(d,-d,-d), vector(d,d,-d)])
+box_points = [vector(-d,-d,-d), vector(-d,-d,d), vector(d,-d,d), vector(d,-d,-d), vector(-d,-d,-d)]
+boxbottom = curve(color=gray, radius=r, pos=box_points)
+boxtop = curve(color=gray, radius=r, pos=[p + vector(0,2*d,0) for p in box_points])
+for i in range(4):
+    c = curve(color=gray, radius=r)
+    c.append([box_points[i], box_points[i] + vector(0,2*d,0)])
 
 Atoms = []
 p = []
 apos = []
-pavg = sqrt(2*mass*1.5*k*T) # average kinetic energy p**2/(2mass) = (3/2)kT
-    
+pavg = sqrt(2*mass*1.5*k*T) 
+
 for i in range(Natoms):
-    x = L*random()-L/2
-    y = L*random()-L/2
-    z = L*random()-L/2
+    x, y, z = L*random()-L/2, L*random()-L/2, L*random()-L/2
     if i == 0:
-        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, make_trail=True, retain=100, trail_radius=0.3*Ratom))
-    else: Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=gray))
+        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=color.cyan, 
+                            make_trail=True, retain=100, trail_radius=0.3*Ratom))
+    else: 
+        Atoms.append(sphere(pos=vector(x,y,z), radius=Ratom, color=gray))
     apos.append(vec(x,y,z))
-    theta = pi*random()
-    phi = 2*pi*random()
+    theta, phi = pi*random(), 2*pi*random()
     px = pavg*sin(theta)*cos(phi)
     py = pavg*sin(theta)*sin(phi)
     pz = pavg*cos(theta)
     p.append(vector(px,py,pz))
 
-deltav = 100 # binning for v histogram
+# --- CONFIGURACIÓN DE GRÁFICOS Y ESTADÍSTICA (Q2) ---
+deltav = 100 
+def barx(v): return int(v/deltav)
+nhisto_bins = int(4500/deltav)
+histo = [0.0]*nhisto_bins
 
-def barx(v):
-    return int(v/deltav) # index into bars array
+# Gráfico de velocidades (Maxwell-Boltzmann)
+gg = graph(width=win, height=0.4*win, xmax=3000, align='left',
+           xtitle='v (m/s)', ytitle='N. Átomos')
+theory = gcurve(color=color.blue, width=2)
+for v in range(0, 3001, 10):
+    theory.plot(v, (deltav/10)*Natoms*4*pi*((mass/(2*pi*k*T))**1.5) * exp(-0.5*mass*(v**2)/(k*T))*(v**2)*10)
+vdist = gvbars(color=color.red, delta=deltav)
 
-nhisto = int(4500/deltav)
-histo = []
-for i in range(nhisto): histo.append(0.0)
-histo[barx(pavg/mass)] = Natoms
+# Gráfico de Energía (Estudio de la Colectividad Canónica Q2)
+ge = graph(width=win, height=0.4*win, align='right', 
+           xtitle='Pasos (t)', ytitle='Energía Total (J)')
+energy_plot = gcurve(color=color.green)
+E_teorica_line = gcurve(color=color.black, dot=True)
+E_teorica = (3/2) * Natoms * k * T 
 
-gg = graph( width=win, height=0.4*win, xmax=3000, align='left',
-    xtitle='speed, m/s', ytitle='Number of atoms', ymax=Natoms*deltav/1000)
+accum = [[deltav*(i+.5), 0] for i in range(int(3000/deltav))]
 
-theory = gcurve( color=color.blue, width=2 )
-dv = 10
-for v in range(0,3001+dv,dv):  # theoretical prediction
-    theory.plot( v, (deltav/dv)*Natoms*4*pi*((mass/(2*pi*k*T))**1.5) *exp(-0.5*mass*(v**2)/(k*T))*(v**2)*dv )
+def update_histogram():
+    """Recalcula el conteo real de partículas por rango de velocidad."""
+    global histo
+    histo = [0.0] * nhisto_bins
+    for i in range(Natoms):
+        v = p[i].mag / mass
+        bin_idx = barx(v)
+        if bin_idx < len(histo):
+            histo[bin_idx] += 1
 
-accum = []
-for i in range(int(3000/deltav)): accum.append([deltav*(i+.5),0])
-vdist = gvbars(color=color.red, delta=deltav )
-
-def interchange(v1, v2):  # remove from v1 bar, add to v2 bar
-    barx1 = barx(v1)
-    barx2 = barx(v2)
-    if barx1 == barx2:  return
-    if barx1 >= len(histo) or barx2 >= len(histo): return
-    histo[barx1] -= 1
-    histo[barx2] += 1
-    
 def checkCollisions():
     hitlist = []
-    r2 = 2*Ratom
-    r2 *= r2
+    r2 = (2*Ratom)**2
     for i in range(Natoms):
         ai = apos[i]
-        for j in range(i) :
-            aj = apos[j]
-            dr = ai - aj
-            if mag2(dr) < r2: hitlist.append([i,j])
+        for j in range(i):
+            if mag2(ai - apos[j]) < r2: hitlist.append([i,j])
     return hitlist
 
-nhisto = 0 # number of histogram snapshots to average
-
+# --- BUCLE PRINCIPAL ---
+nhisto = 0
 while True:
     rate(300)
-    # Accumulate and average histogram snapshots
-    for i in range(len(accum)): accum[i][1] = (nhisto*accum[i][1] + histo[i])/(nhisto+1)
-    if nhisto % 10 == 0:
+    
+    # Sincronización del histograma
+    update_histogram()
+    for i in range(len(accum)): 
+        accum[i][1] = (nhisto * accum[i][1] + histo[i]) / (nhisto + 1)
+    
+    if nhisto % 10 == 0: 
         vdist.data = accum
+        # Estudio de energía (Q2) 
+        K_total = sum([mag2(pi)/(2*mass) for pi in p])
+        energy_plot.plot(nhisto, K_total)
+        E_teorica_line.plot(nhisto, E_teorica)
+    
     nhisto += 1
 
-    # Update all positions
-    for i in range(Natoms): Atoms[i].pos = apos[i] = apos[i] + (p[i]/mass)*dt
-    
-    # Check for collisions
-    hitlist = checkCollisions()
+    # Evolución temporal
+    for i in range(Natoms): 
+        apos[i] = apos[i] + (p[i]/mass)*dt
+        Atoms[i].pos = apos[i]
 
-    # If any collisions took place, update momenta of the two atoms
-    for ij in hitlist:
-        i = ij[0]
-        j = ij[1]
-        ptot = p[i]+p[j]
-        posi = apos[i]
-        posj = apos[j]
-        vi = p[i]/mass
-        vj = p[j]/mass
-        vrel = vj-vi
-        a = vrel.mag2
-        if a == 0: continue;  # exactly same velocities
-        rrel = posi-posj
-        if rrel.mag > Ratom: continue # one atom went all the way through another
-    
-        # theta is the angle between vrel and rrel:
-        dx = dot(rrel, vrel.hat)       # rrel.mag*cos(theta)
-        dy = cross(rrel, vrel.hat).mag # rrel.mag*sin(theta)
-        # alpha is the angle of the triangle composed of rrel, path of atom j, and a line
-        #   from the center of atom i to the center of atom j where atome j hits atom i:
-        alpha = asin(dy/(2*Ratom)) 
-        d = (2*Ratom)*cos(alpha)-dx # distance traveled into the atom from first contact
-        deltat = d/vrel.mag         # time spent moving from first contact to position inside atom
-        
-        posi = posi-vi*deltat # back up to contact configuration
-        posj = posj-vj*deltat
-        mtot = 2*mass
-        pcmi = p[i]-ptot*mass/mtot # transform momenta to cm frame
-        pcmj = p[j]-ptot*mass/mtot
-        rrel = norm(rrel)
-        pcmi = pcmi-2*pcmi.dot(rrel)*rrel # bounce in cm frame
-        pcmj = pcmj-2*pcmj.dot(rrel)*rrel
-        p[i] = pcmi+ptot*mass/mtot # transform momenta back to lab frame
-        p[j] = pcmj+ptot*mass/mtot
-        apos[i] = posi+(p[i]/mass)*deltat # move forward deltat in time
-        apos[j] = posj+(p[j]/mass)*deltat
-        interchange(vi.mag, p[i].mag/mass)
-        interchange(vj.mag, p[j].mag/mass)
-    
+    # Colisiones entre esferas
+    hitlist = checkCollisions()
+    for i, j in hitlist:
+        vrel = (p[j]-p[i])/mass
+        rrel = apos[i]-apos[j]
+        if vrel.mag == 0 or rrel.mag > 2*Ratom: continue
+        ptot = p[i] + p[j]
+        rrel_unit = norm(rrel)
+        p[i] = p[i] - dot(p[i] - ptot*0.5, rrel_unit) * rrel_unit * 2
+        p[j] = ptot - p[i]
+
+    # Paredes: Termostato de Andersen (Q2) 
     for i in range(Natoms):
         loc = apos[i]
         if abs(loc.x) > L/2:
-            if loc.x < 0: p[i].x =  abs(p[i].x)
-            else: p[i].x =  -abs(p[i].x)
-        
+            p[i].x = (1 if loc.x < 0 else -1) * abs(mass * np.random.normal(0, sigma))
+            apos[i].x = (L/2 - 0.001) * np.sign(loc.x)
         if abs(loc.y) > L/2:
-            if loc.y < 0: p[i].y = abs(p[i].y)
-            else: p[i].y =  -abs(p[i].y)
-        
+            p[i].y = (1 if loc.y < 0 else -1) * abs(mass * np.random.normal(0, sigma))
+            apos[i].y = (L/2 - 0.001) * np.sign(loc.y)
         if abs(loc.z) > L/2:
-            if loc.z < 0: p[i].z =  abs(p[i].z)
-            else: p[i].z =  -abs(p[i].z)
-    
+            p[i].z = (1 if loc.z < 0 else -1) * abs(mass * np.random.normal(0, sigma))
+            apos[i].z = (L/2 - 0.001) * np.sign(loc.z)
