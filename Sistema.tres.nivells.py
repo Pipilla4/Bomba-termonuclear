@@ -1,26 +1,24 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-passos = 1000
+passos = 10000
 
-T = 300
-beta = 1/(1.38e-23*T)
+T = 10 # kT/E
 
 N = 1000 # Nombre de partícules
-estats = np.array([0,1,10]) # Estats possibles d'una partícula
-x = np.array([int(N/3)+1,int(N/3),int(N/3)]) # Microstat (Nombre de partícules en cada estat)
-def H(x):
-    return np.dot(estats,x) #Energia del microstat
-def P(x):
-    return np.exp(-beta*H(x)) #Probabilitat del microstat
+estats = [0,1,10] # Estats possibles d'una partícula
+x = np.random.choice([0,1,2], size=N) # Microstat
+
 def P_acc(y,x):
-    return min(1,P(y)/P(x))
+    return min(1,np.exp((-estats[y]+estats[x])/T))
 
 for i in range(passos):
-    y = [0,0,0]
-    for j in range(N):
-        y[np.random.randint(3)] += 1 # Generem un nou microstat aleatori
-    if np.random.rand() < P_acc(y,x): # Acceptem o rebutgem el microstat
-        x=y
+    particula = np.random.randint(N) # Triem una partícula a l'atzar
+    canvi = np.random.choice([s for s in [0,1,2] if s != x[particula]]) # Triem un nou estat per la partícula
+    if np.random.rand() < P_acc(canvi,x[particula]): # Acceptem o rebutgem el microstat
+        x[particula] = canvi
 
-print(x)
+plt.hist(x, bins=3)
+plt.xlabel('Estat')
+plt.ylabel('Partícules')
+plt.show()
