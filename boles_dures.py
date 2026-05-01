@@ -8,16 +8,17 @@ Natoms = 500
 L = 1  
 gray = color.gray(0.7)
 mass = 4E-3/6E23  
-Ratom = 0.02  # Valor a discutir en Q1 [cite: 11]
+Ratom = 0.02  # Valor a discutir en Q1
 k = 1.4E-23  
 T = 300  # Temperatura de la colectividad canónica (Q2) 
 dt = 1E-5
 sigma = (k*T/mass)**(1/2)
+nu = 500 # Frecuencia de colisión con el baño térmico (Termostato de Andersen)
 
 animation = canvas(width=win, height=win, align='left')
 animation.range = L
-animation.title = 'Gas de esferas duras - Termostato de Andersen (Q2)'
-animation.caption = "Distribución de velocidades (Izq) y Energía Total (Der)."
+animation.title = 'Gas de esferas duras - Termostato de Andersen Clásico (Q2)'
+animation.caption = "Distribución de velocidades, Posiciones y Energía."
 
 # --- CONFIGURACIÓN DEL CONTENEDOR ---
 d = L/2+Ratom
@@ -83,29 +84,54 @@ gp = graph(width=win, height=0.4*win, align='right', xmin=-0.5, xmax=0.5,
            xtitle='z (m)', ytitle='N. Àtoms')
 pos_dist = gvbars(color=color.orange, delta=0.01) 
 
+# --- HISTOGRAMA DE ENERGÍA ---
+kT = k * T
+deltaE = 0.2 * kT  
+maxE = 10 * kT     
+nhisto_bins_e = int(maxE / deltaE)
+histo_e = [0.0] * nhisto_bins_e
+
+def bar_e(energy): 
+    return int(energy / deltaE)
+
+# Gráfico del histograma de energías individuales
+g_hist_e = graph(width=win, height=0.4*win, align='left', 
+                 xtitle='Energía Cinética Individual (J)', ytitle='N. Átomos')
+edist = gvbars(color=color.magenta, delta=deltaE)
+
 accum = [[deltav*(i+.5), 0] for i in range(int(3000/deltav))]
 accum_z = [[-2250 + deltav*i, 0] for i in range(45)]
 accum_zp = [[-0.5 + 0.01*(i+0.5), 0] for i in range(100)]
+accum_e = [[deltaE*(i+.5), 0] for i in range(nhisto_bins_e)]
 
 def update_histogram():
-    """Recalcula el conteo real de partículas por rango de velocidad."""
-    global histo, histo_z, histo_zp
+    """Recalcula el conteo real de partículas por rango de velocidad, posición y energía."""
+    global histo, histo_z, histo_zp, histo_e
     histo = [0.0] * nhisto_bins
     histo_z = [0.0] * nhisto_bins
     histo_zp = [0.0] * 100
+    histo_e = [0.0] * nhisto_bins_e
+    
     for i in range(Natoms):
         v = p[i].mag / mass
         bin_idx = barx(v)
         if bin_idx < len(histo):
             histo[bin_idx] += 1
+            
         vz = p[i].z / mass
         bin_idx_z = barx_z(vz)
         if 0 <= bin_idx_z < len(histo_z):
             histo_z[bin_idx_z] += 1
+            
         zp = apos[i].z
         bin_idx_zp = barx_zp(zp)
         if 0 <= bin_idx_zp < len(histo_zp):
             histo_zp[bin_idx_zp] += 1
+            
+        e_kin = mag2(p[i]) / (2 * mass)
+        bin_idx_e = bar_e(e_kin)
+        if 0 <= bin_idx_e < len(histo_e): 
+            histo_e[bin_idx_e] += 1
 
 def checkCollisions():
     hitlist = []
@@ -129,12 +155,15 @@ while True:
         accum_z[i][1] = (nhisto * accum_z[i][1] + histo_z[i]) / (nhisto + 1)
     for i in range(len(accum_zp)): 
         accum_zp[i][1] = (nhisto * accum_zp[i][1] + histo_zp[i]) / (nhisto + 1)
+    for i in range(len(accum_e)): 
+        accum_e[i][1] = (nhisto * accum_e[i][1] + histo_e[i]) / (nhisto + 1)
     
     if nhisto % 10 == 0: 
         vdist.data = accum
         vdist_z.data = accum_z
         pos_dist.data = accum_zp
-        # Estudio de energía (Q2) 
+        edist.data = accum_e 
+        
         K_total = sum([mag2(pi)/(2*mass) for pi in p])
         energy_plot.plot(nhisto, K_total)
         E_teorica_line.plot(nhisto, E_teorica)
@@ -143,7 +172,7 @@ while True:
 
     # Evolución temporal
     for i in range(Natoms): 
-        p[i] = p[i] + mass*vector(0,0,-9800)*dt
+        #p[i] = p[i] + mass*vector(0,0,-9800)*dt
         apos[i] = apos[i] + (p[i]/mass)*dt
         Atoms[i].pos = apos[i]
 
@@ -158,7 +187,7 @@ while True:
         p[i] = p[i] - dot(p[i] - ptot*0.5, rrel_unit) * rrel_unit * 2
         p[j] = ptot - p[i]
 
-    # Paredes: Termostato de Andersen (Q2) 
+    # Paredes: Rebote elástico estándar
     for i in range(Natoms):
         loc = apos[i]
         if abs(loc.x) > L/2:
@@ -173,6 +202,15 @@ while True:
             if loc.z < 0: p[i].z =  abs(p[i].z)
             else: p[i].z =  -abs(p[i].z)
 
-        if abs(loc.x) > L/2 or abs(loc.y) > L/2 or abs(loc.z) > L/2:
-            p_random = mass*maxwell.rvs(scale=sigma)
-            p[i] = p[i]/mag(p[i])*p_random
+    # --- TERMOSTATO DE ANDERSEN CLÁSICO ---
+    probabilidad = nu * dt   
+    for i in range(Natoms):
+        if random() < probabilidad:
+            # Selecciona una magnitud de momento según la temperatura T
+            p_random = mass * maxwell.rvs(scale=sigma)
+            
+            # Asigna una nueva DIRECCIÓN totalmente al azar (isotrópica)
+            theta_rand, phi_rand = pi*random(), 2*pi*random()
+            p[i].x = p_random * sin(theta_rand) * cos(phi_rand)
+            p[i].y = p_random * sin(theta_rand) * sin(phi_rand)
+            p[i].z = p_random * cos(theta_rand)
