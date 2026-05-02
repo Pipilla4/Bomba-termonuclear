@@ -24,7 +24,7 @@ for t in T:
     error = precisio + 1
     while error > precisio:
         E_inicial = np.sum(x)
-        for i in range(3*N):
+        for i in range(2*N):
             particula = np.random.randint(N) # Triem una partícula a l'atzar
             canvi = np.random.choice([s for s in estats if s != x[particula]]) # Triem un nou estat per la partícula
             if np.random.rand() < P_acc(canvi,x[particula],t): # Acceptem o rebutgem el microstat
