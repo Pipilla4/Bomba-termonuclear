@@ -24,7 +24,7 @@ for t in T:
     error = precisio + 1
     while error > precisio:
         E_inicial = np.sum(x)
-        for i in range(3*N):
+        for i in range(2*N):
             particula = np.random.randint(N) # Triem una partícula a l'atzar
             canvi = np.random.choice([s for s in estats if s != x[particula]]) # Triem un nou estat per la partícula
             if np.random.rand() < P_acc(canvi,x[particula],t): # Acceptem o rebutgem el microstat
@@ -38,18 +38,19 @@ for t in T:
 def f(T,E):
     return np.exp(-E/T)/(1 + np.exp(-1/T) + np.exp(-10/T))
 
-plt.plot(T, ocupacio0,'.', label='Estat 0')
-plt.plot(T, ocupacio1, '.', label='Estat 1')
-plt.plot(T, ocupacio2, '.', label='Estat 2')
+plt.plot(T, N*f(T,0),'--',color = "#A7C7E7")
+plt.plot(T, N*f(T,1),'--',color = "#A8E6A3")
+plt.plot(T, N*f(T,10),'--',color = "#F4A7A7")
 
-plt.plot(T, N*f(T,0),'--', label='Teoria 0')
-plt.plot(T, N*f(T,1),'--', label='Teoria 1')
-plt.plot(T, N*f(T,10),'--', label='Teoria 2')
+plt.plot(T, ocupacio0,'.',color = "#2C6DA9", label='Fonamental')
+plt.plot(T, ocupacio1, '.',color = "#227D28", label='1r excitat')
+plt.plot(T, ocupacio2, '.',color = "#9B0505", label='2n excitat')
 
 plt.vlines(10*np.log(N),0,N,color='black',linestyle='dashed',label=r'$T_c$')
 plt.xscale('log')
 plt.xlabel(r'$kT/\varepsilon$') 
 plt.ylabel('Ocupació')
+plt.xlim(0.1, 1000)
 plt.legend()
 plt.show()
 
@@ -63,17 +64,6 @@ fluctuacions_relatives = []
 for N in Nv:
     X_inici = np.random.choice(estats, size=N) # estats inicials de les partícules
     x = X_inici.copy()
-    
-    error = precisio + 1
-    while error > precisio: # iterem fins estabilitzar l'energia total
-        E_inicial = np.sum(x)
-        for i in range(3*N):
-            particula = np.random.randint(N) # Triem una partícula a l'atzar
-            canvi = np.random.choice([s for s in estats if s != x[particula]]) # Triem un nou estat per la partícula
-            if np.random.rand() < P_acc(canvi, x[particula], T_fixa): # Acceptem o rebutgem el microstat
-                x[particula] = canvi
-        E_final = np.sum(x)
-        error = abs(E_final - E_inicial) / E_inicial
         
     energies_equilibri = []
     passos_mesura = 500  # nombre de mostres independents d'energia
@@ -92,7 +82,7 @@ for N in Nv:
 
 # Representació gràfica
 plt.figure()
-plt.plot(Nv, fluctuacions_relatives, 'o-', label='Fluctuació simulada')
+plt.plot(Nv, fluctuacions_relatives, 'o', label='Fluctuació simulada')
 
 constant_ajust = fluctuacions_relatives[0] * np.sqrt(Nv[0])
 plt.plot(Nv, constant_ajust / np.sqrt(Nv), '--', color='red', label=r'Teoria $\propto 1/\sqrt{N}$')
@@ -100,7 +90,7 @@ plt.plot(Nv, constant_ajust / np.sqrt(Nv), '--', color='red', label=r'Teoria $\p
 plt.xscale('log')
 plt.yscale('log')
 plt.xlabel('Nombre de partícules ($N$)')
-plt.ylabel(r'Fluctuació relativa de l\'energia ($\sigma_E / \langle E \rangle$)')
+plt.ylabel(r"Fluctuació relativa de l'energia ($\sigma_E / \langle E \rangle$)")
 plt.title('Fluctuacions en funció de la mida del sistema')
 plt.legend()
 plt.show()
