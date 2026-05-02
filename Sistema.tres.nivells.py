@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 N = 1000  # nombre de partícules
 precisio  = 0.01  # precisió de la simulació
@@ -51,6 +52,7 @@ plt.xscale('log')
 plt.xlabel(r'$kT/\varepsilon$') 
 plt.ylabel('Ocupació')
 plt.xlim(0.1, 1000)
+plt.tick_params(axis='both', which='both', top=True, right=True,direction='in')
 plt.legend()
 plt.show()
 
@@ -85,12 +87,21 @@ plt.figure()
 plt.plot(Nv, fluctuacions_relatives, 'o', label='Fluctuació simulada')
 
 constant_ajust = fluctuacions_relatives[0] * np.sqrt(Nv[0])
-plt.plot(Nv, constant_ajust / np.sqrt(Nv), '--', color='red', label=r'Teoria $\propto 1/\sqrt{N}$')
+eixX = np.linspace(9, 11000, 20)
+plt.plot(eixX, constant_ajust / np.sqrt(eixX), '--', color='red', label=r'Teoria $\propto 1/\sqrt{N}$')
 
 plt.xscale('log')
 plt.yscale('log')
+plt.xlim(9, 11000)
+plt.ylim(0.01, 1)
+ax = plt.gca()
+ax.yaxis.set_major_locator(ticker.LogLocator(base=10.0, numticks=5))
+ax.yaxis.set_minor_locator(ticker.LogLocator(base=10.0, subs=np.arange(1, 10), numticks=10))
+ax.yaxis.set_major_formatter(ticker.LogFormatterSciNotation(base=10.0))
+ax.yaxis.set_minor_formatter(ticker.LogFormatterSciNotation(base=10.0, labelOnlyBase=False))
+plt.tick_params(axis='both', which='both', top=True, right=True, direction='in')
+plt.tick_params(axis='y', which='minor', length=4)
 plt.xlabel('Nombre de partícules ($N$)')
 plt.ylabel(r"Fluctuació relativa de l'energia ($\sigma_E / \langle E \rangle$)")
-plt.title('Fluctuacions en funció de la mida del sistema')
 plt.legend()
 plt.show()
