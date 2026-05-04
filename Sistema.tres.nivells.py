@@ -48,7 +48,7 @@ plt.plot(T, ocupacio0,'.',color = "#2C6DA9", label='Fonamental')
 plt.plot(T, ocupacio1, '.',color = "#227D28", label='1r excitat')
 plt.plot(T, ocupacio2, '.',color = "#9B0505", label='2n excitat')
 
-plt.vlines(10*np.log(N),0,N,color='black',linestyle='dashed',label=r'$T_c$')
+plt.vlines(10/np.log(N),0,N,color='black',linestyle='dashed',label=r'$T_c$')
 plt.xscale('log')
 plt.xlabel(r'$kT/\varepsilon$') 
 plt.ylabel('Ocupació')
